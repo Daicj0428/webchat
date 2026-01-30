@@ -1,1 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Chat</title>
+    <!-- Markdown解析库 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            position: relative;
+            background: #f8f9fa;
+        }
 
+        /* 侧边栏样式 */
+        #sidebar {
+            position: fixed;
+            left: -250px;
+            top: 0;
+            bottom: 0;
+            width: 220px;
+            background: #ffffff;
+            transition: 0.3s;
+            z-index: 1000;
+            border-right: 1px solid #dee2e6;
+            padding: 20px;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            overflow-y: auto; /* 允许侧边栏内容滚动 */
+            overflow-y: auto;
+        }
+
+        #sidebar.active {
+            left: 0;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0;
+        }
+
+        .sidebar-menu li {
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+
+        .sidebar-menu li:hover {
+            background: #e9ecef;
+        }
+
+        /* 侧边栏开关按钮 */
+        #sidebar-toggle {
+            position: fixed;
+            left: 20px;
+            top: 20px;
+            z-index: 1001;
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        #sidebar-toggle:hover {
+            background: #0056b3;
+        }
+
+        /* 聊天主区域 */
+        #chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            margin-left: 0;
+            transition: 0.3s;
+        }
+
+        /* 当侧边栏打开时，调整聊天区域的左边距 */
+        #sidebar.active + #chat-container {
+            margin-left: 250px;
+        }
+
+        #chat-window {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #ffffff;
+        }
+
+        /* 消息输入区域 */
+        #message-input {
+            display: flex;
+            padding: 15px;
+            background: white;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+            gap: 10px;
+            align-items: center;
+        }
+
+        #message-input textarea {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 12px;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            resize: none;
+            outline: none;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            max-height: 120px;
+        }
+
+        #message-input textarea:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        }
+
+        #message-input textarea::placeholder {
+            color: #6c757d;
+        }
+
+        #message-input button {
+            padding: 12px 24px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.2s;
+        }
+
+        #message-input button:hover {
+            background-color: #0056b3;
+        }
+
+        #message-input button:active {
+            transform: scale(0.95);
+        }
+
+        /* 消息样式 */
+        .message {
+            max-width: 80%;
+            margin-bottom: 20px;
+            padding: 10px 15px;
+            border-radius: 12px;
+            position: relative;
+        }
+
+        .message.user {
+            background: #007bff;
+            color: white;
+            margin-left: auto;
+        }
+
+        .message.bot {
+            background: white;
+            border: 1px solid #dee2e6;
+        }
+
+        .timestamp {
+            font-size: 0.75rem;
+            color: #6c757d;
+            margin-bottom: 5px;
+        }
+
+        .message-content {
+            overflow-x: auto;
+        }
+
+        .message-content img {
+            max-width: 100%;
+        }
+
+        .message-content p {
+            margin: 0.2em 0;
+            line-height: 1.4;
+        }
+
+        .message-content pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        .message-content code {
+            background: #f5f5f5;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+
+        .message-content ul, 
+        .message-content ol {
+            padding-left: 20px;
+            margin: 0.5em 0;
+        }
+
+        .message-content li {
+            margin: 0.2em 0;
+        }
+
+        .message-content blockquote {
+            border-left: 3px solid #ddd;
+            padding-left: 10px;
+            margin: 0.5em 0;
+            color: #666;
+        }
+
+        /* 调试会话id显示 */
+        .session-id {
+            font-size: 0.7rem;
+            color: #999;
+            margin-bottom: 3px;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 600px) {
+            #sidebar.active + #chat-container {
+                margin-left: 0;
+            }
+
+            #sidebar {
+                width: 100%;
+                left: -100%;
+            }
+
+            #sidebar.active {
+                left: 0;
+            }
+
+            #message-input {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            #message-input textarea {
+                width: 100%;
+            }
+
+            #message-input button {
+                width: 100%;
+            }
+        }
+
+        /* 新增复制按钮样式 */
+        .copy-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            padding: 3px 8px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+            opacity: 0.6;
+            transition: opacity 0.3s;
+        }
+
+        .copy-btn:hover {
+            opacity: 1;
+        }
+
+        pre {
+            position: relative;
+            padding-top: 25px;
+            background: #b8afaf;
+            border-radius: 4px;
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+        
+        /* 打字机效果 */
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        .typing-cursor::after {
+            content: "|";
+            animation: blink 1s step-end infinite;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <!-- 侧边栏开关 -->
+    <button id="sidebar-toggle">☰</button>
+
+    <!-- 侧边栏 -->
+    <div id="sidebar">
+        <h3>Chat Sessions</h3>
+        <ul class="sidebar-menu" id="session-list">
+            <li onclick="newSession()">🆕 New Session</li>
+            <li onclick="showHistory()">📚 History</li>
+            <li onclick="clearHistory()">🗑️ Clear History</li>
+            <li onclick="closeSidebar()">❌ Close</li>
+        </ul>
+    </div>
+
+    <!-- 聊天主容器 -->
+    <div id="chat-container">
+        <div id="chat-window"></div>
+        <div id="message-input">
+            <textarea id="message" placeholder="Type your message..." rows="1"></textarea>
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
+    <script>
+
+        // 初始化Socket.io连接
+        const socket = io({
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000
+        });
+
+        // 侧边栏控制
+        document.getElementById('sidebar-toggle').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('active');
+        });
+
+        // 新会话
+        function newSession() {
+            currentSession = Date.now().toString();
+            document.getElementById('chat-window').innerHTML = '';
+            // 确保有初始存储记录
+            if (!localStorage.getItem('chatHistory')) {
+                localStorage.setItem('chatHistory', '[]');
+            }
+            updateSessionList();
+            closeSidebar();
+        }
+
+        // 显示历史记录
+        function showHistory() {
+            const history = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+            const chatWindow = document.getElementById('chat-window');
+            chatWindow.innerHTML = ''; // 清空当前聊天窗口
+            chatWindow.innerHTML = '';
+
+            history.forEach(record => {
+                if (record.session === currentSession) {
+                    const messageDiv = createMessageElement(record.content, record.isUser);
+                    chatWindow.appendChild(messageDiv);
+                }
+            });
+
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+            closeSidebar();
+        }
+
+        // 清空历史记录
+        function clearHistory() {
+            localStorage.removeItem('chatHistory', '[]');
+            updateSessionList();
+            closeSidebar();
+        }
+
+        // 关闭侧边栏
+        function closeSidebar() {
+            document.getElementById('sidebar').classList.remove('active');
+        }
+        // 新增复制函数
+        function copyCode(button) {
+            console.log('Copy button clicked');
+
+            // 获取最近的 pre 元素
+            const pre = button.closest('pre');
+            console.log('Found pre element:', pre);
+
+            if (!pre) return;
+            
+            // 尝试获取代码块中的文本内容
+            let textToCopy = '';
+            
+            // 优先获取 code 元素内的文本
+            const codeElement = pre.querySelector('code');
+            if (codeElement) {
+                textToCopy = codeElement.textContent;
+            } 
+            // 如果没有 code 元素，获取整个 pre 的文本
+            else {
+                textToCopy = pre.textContent;
+            }
+            
+            // 移除复制按钮的文本（如果有）
+            textToCopy = textToCopy.replace('Copy', '').trim();
+            
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                const originalText = button.textContent;
+                button.textContent = "Copied!";
+                setTimeout(() => {
+                    button.textContent = originalText;
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                button.textContent = "Error";
+            });
+        }
+
+
+        // 消息处理
+        function createMessageElement(content, isUser) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
+
+            const timestamp = new Date().toLocaleString('en-US', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+
+            // 添加会话ID显示（仅开发调试用，正式环境可移除）
+            const sessionInfo = isUser ? `<div class="session-id">会话ID: ${currentSessionId}</div>` : '';
+            
+           let parsedContent;
+           if (isUser) {
+               parsedContent = content;
+           } else {
+               // 确保代码块有正确的标签结构
+               parsedContent = marked.parse(content.replace(/\n/g, '\n'))
+                   .replace(/<pre>/g, '<pre><code>')
+                   .replace(/<\/pre>/g, '</code></pre>');
+           } 
+            messageDiv.innerHTML = `
+                <div class="timestamp">${timestamp}</div>
+                ${sessionInfo}
+                <div class="message-content">${parsedContent}</div>
+            `;
+
+            // 为bot消息添加复制按钮
+            if (!isUser) {
+                setTimeout(() => {
+                    messageDiv.querySelectorAll('pre').forEach(pre => {
+                        const existingButton = pre.querySelector('.copy-btn');
+                        if (!existingButton) {
+                            const button = document.createElement('button');
+                            button.className = 'copy-btn';
+                            button.textContent = 'Copy';
+                            button.onclick = () => copyCode(button);
+                            pre.appendChild(button);
+                        }
+                    });
+                }, 0);
+            }
+
+            return messageDiv;
+        }
+
+        let currentBotMessage = null;
+        let streamBuffer = "";
+        let currentSession = Date.now().toString();
+        let lastRenderTime = 0;
+        let currentSessionId = Date.now().toString();
+        const RENDER_INTERVAL = 50; // 50ms渲染间隔
+
+        socket.on('message', (msg) => {
+            console.log("收到消息:", msg.type, msg.content);  // 调试日志
+            
+            if (msg.type === 'start') {
+                currentBotMessage = createMessageElement('', false);
+                document.getElementById('chat-window').appendChild(currentBotMessage);
+                streamBuffer = "";
+                lastRenderTime = Date.now();
+                
+                // 确保新消息可见
+                setTimeout(() => {
+                    currentBotMessage.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'end'
+                    });
+                }, 50);
+            }
+            else if (msg.type === 'stream') {
+                streamBuffer += msg.content;
+                
+                // 实时渲染（无延迟）
+                renderStreamContent();
+                lastRenderTime = Date.now();
+            }
+            else if (msg.type === 'end') {
+                // 最终渲染
+                renderStreamContent();
+                // 确保在内容完全渲染后添加复制按钮
+                setTimeout(() => {
+                    addCopyButtons();
+                    // 滚动到底部
+                    const chatWindow = document.getElementById('chat-window');
+                    chatWindow.scrollTop = chatWindow.scrollHeight;
+                }, 300); // 增加延迟确保内容稳定
+                currentBotMessage = null;
+            }
+            else if (msg.type === 'full') {
+                // 修复变量名错误
+                const fullContent = msg.content;
+                saveToHistory(fullContent, false);
+            }
+            else {
+                // 兼容处理
+                const chatWindow = document.getElementById('chat-window');
+                const messageDiv = createMessageElement(msg.content, false);
+                chatWindow.appendChild(messageDiv);
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+                saveToHistory(msg.content, false);
+                // 为非流式消息添加复制按钮
+                setTimeout(addCopyButtons, 100);
+            }
+        });
+
+        // 添加连接状态监听
+        socket.on('connect', () => {
+            console.log('已连接到服务器');
+        });
+
+        socket.on('disconnect', () => {
+            console.log('与服务器断开连接');
+        });
+
+        socket.on('connect_error', (error) => {
+            console.error('连接错误:', error);
+        });
+
+        function renderStreamContent() {
+            if (currentBotMessage && streamBuffer) {
+                const chatWindow = document.getElementById('chat-window');
+                const contentDiv = currentBotMessage.querySelector('.message-content');
+                const shouldScroll = isNearBottom(chatWindow);
+                
+                contentDiv.innerHTML = marked.parse(streamBuffer.replace(/\n/g, '\n'));
+                
+                if (shouldScroll) {
+                    currentBotMessage.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'end'
+                    });
+                }
+            }
+        }
+
+        // 新增判断是否接近底部的函数
+        function isNearBottom(element, threshold=100) {
+            return (element.scrollHeight - element.scrollTop - element.clientHeight) < threshold;
+        }
+
+        function addCopyButtons() {
+            const chatWindow = document.getElementById('chat-window');
+            const botMessages = chatWindow.querySelectorAll('.message.bot');
+            
+            botMessages.forEach(message => {
+                message.querySelectorAll('pre').forEach(pre => {
+                    // 检查是否已有复制按钮
+                    if (!pre.querySelector('.copy-btn')) {
+                        const button = document.createElement('button');
+                        button.className = 'copy-btn';
+                        button.textContent = 'Copy';
+                        // 使用事件委托绑定点击事件
+                        button.addEventListener('click', () => copyCode(button));
+                        pre.appendChild(button);
+                    }
+                });
+            });
+        } 
+
+
+        // 发送消息
+        function sendMessage() {
+            const input = document.getElementById('message');
+            const content = input.value.trim();
+            
+            if (content) {
+                // 获取当前会话历史
+                const history = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+                const sessionHistory = history.filter(record => 
+                    record.session === currentSession
+                );
+
+                // 构建上下文消息数组
+                const contextMessages = sessionHistory.map(record => ({
+                    role: record.isUser ? "user" : "assistant",
+                    content: record.content
+                }));
+
+                // 添加新消息
+                contextMessages.push({ role: "user", content });
+
+                const chatWindow = document.getElementById('chat-window');
+                chatWindow.appendChild(createMessageElement(content, true));
+                // 发送消息时携带上下文和会话ID
+                socket.emit('message', {
+                    content: content,
+                    context: contextMessages,
+                    session_id: currentSessionId  // 添加会话ID
+                });
+                input.value = '';
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+                saveToHistory(content, true);
+            }
+        }
+
+        // 保存到本地历史
+        function saveToHistory(content, isUser) {
+            const history = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+            const record = {
+                session: currentSession,
+                content: content,
+                isUser: isUser,
+                timestamp: new Date().toISOString()
+            };
+            history.push(record);
+            localStorage.setItem('chatHistory', JSON.stringify(history));
+        }
+
+        // 快捷键支持
+        document.getElementById('message').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // 自动调整输入框高度
+        const textarea = document.getElementById('message');
+        textarea.addEventListener('input', () => {
+            textarea.style.height = 'auto';
+            textarea.style.height = `${textarea.scrollHeight}px`;
+        });
+
+        // 更新会话列表
+        function updateSessionList() {
+            const history = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+            const sessionList = document.getElementById('session-list');
+            const sessions = [...new Set(history.map(record => record.session))];
+
+            // 清空现有会话列表
+            sessionList.innerHTML = `
+                <li onclick="newSession()">🆕 New Session</li>
+                <li onclick="showHistory()">📚 History</li>
+                <li onclick="clearHistory()">🗑️ Clear History</li>
+                <li onclick="closeSidebar()">❌ Close</li>
+            `;
+
+            // 添加历史会话
+            sessions.forEach(session => {
+                const li = document.createElement('li');
+                li.textContent = `Session ${session}`;
+                li.onclick = () => loadSession(session);
+                sessionList.appendChild(li);
+            });
+        }
+
+        // 加载会话
+        function loadSession(sessionId) {
+            currentSession = sessionId;
+            // 清除现有上下文
+            const chatWindow = document.getElementById('chat-window');
+            chatWindow.innerHTML = '';
+            
+            // 加载历史记录时自动建立上下文
+            const history = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+            history.forEach(record => {
+                if (record.session === sessionId) {
+                    const messageDiv = createMessageElement(record.content, record.isUser);
+                    chatWindow.appendChild(messageDiv);
+                }
+            });
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+            closeSidebar();
+        }
+
+        // 初始化时更新会话列表
+        updateSessionList();
+    </script>
+</body>
+</html>
