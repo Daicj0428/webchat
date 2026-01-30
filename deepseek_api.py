@@ -3,13 +3,10 @@ from openai import OpenAI
 def deepseek1(message, stream=True):
     client = OpenAI(
      base_url="https://api.deepseek.com/",
-    #  api_key="sk-7eff2b5783d042a096ebe4792bec898d"
-    #  api_key="sk-afff8a14b2e6437eb4f9bef2d7dac989"
-     api_key="sk-f0c57962405e4e0e8bfce0b557828123"
+     api_key="sk-xxxxxx"
      #腾讯云
      # base_url="https://api.lkeap.cloud.tencent.com/v1",
-     # api_key="sk-8oIweRnma6fDLmFcwuRwyJP01Z91sBCTVehzHWMNdSvNdsSx"
-     # api_key="sk-vKrwYlZEq8OqbXXbVFF1dLLiM4ywmRIZv9Oc5JsPkGNWHZXU"
+     # api_key="sk-xxxxxx"
 
 
     )
@@ -33,4 +30,5 @@ def deepseek1(message, stream=True):
         return completion.choices[0].message.content    
 
     # print(completion.choices[0].message.content)
+
     # return completion.choices[0].message.content
